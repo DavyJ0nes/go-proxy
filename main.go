@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/davyj0nes/go-proxy/internal"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -17,37 +17,40 @@ func main() {
 	target := flag.String("target", "http://localhost:80", "")
 	flag.Parse()
 
-	handler := internal.NewHandler(*target)
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	handler := internal.NewHandler(logger, *target)
 
 	srv := &http.Server{
 		Addr:    ":" + *port,
 		Handler: handler,
 	}
 
-	log.Println("starting proxy...")
+	logger.Info("starting proxy...")
 	go func(srv *http.Server) {
 		if err := srv.ListenAndServe(); err != nil {
-			log.Fatalln(err)
+			logger.Fatalln(err)
 		}
 	}(srv)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	log.Print("proxy has started...")
+	logger.Info("proxy has started...")
 
 	killSignal := <-interrupt
 	switch killSignal {
 	case os.Interrupt:
-		log.Print("got SIGINT...")
+		logger.Info("got SIGINT...")
 	case syscall.SIGTERM:
-		log.Print("got SIGTERM...")
+		logger.Info("got SIGTERM...")
 	}
 
-	log.Print("proxy shutting down...")
+	logger.Info("proxy shutting down...")
 	if err := srv.Shutdown(context.Background()); err != nil {
-		log.Fatalln(err)
+		logger.Fatalln(err)
 	}
 
-	log.Print("successfully shut down...")
+	logger.Info("successfully shut down...")
 }

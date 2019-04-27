@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -32,10 +32,11 @@ var (
 	}, []string{"method", "route", "status_code"})
 )
 
-func NewHandler(targetAddr string) http.Handler {
+func NewHandler(logger *logrus.Logger, targetAddr string) http.Handler {
 	r := mux.NewRouter()
 	h := handler{
-		Addr: targetAddr,
+		Addr:   targetAddr,
+		Logger: logger,
 	}
 
 	r.Handle("/metrics", promhttp.Handler())
@@ -45,7 +46,8 @@ func NewHandler(targetAddr string) http.Handler {
 }
 
 type handler struct {
-	Addr string
+	Addr   string
+	Logger *logrus.Logger
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -60,7 +62,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host = target.Host
 	}
 
-	log.Println(target)
+	h.Logger.Info(target)
 
 	proxy := &httputil.ReverseProxy{
 		Director: director,
