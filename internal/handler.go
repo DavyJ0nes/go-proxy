@@ -32,6 +32,8 @@ var (
 	}, []string{"method", "route", "status_code"})
 )
 
+// NewHandler instantiates an http.Handler that has the relevant proxy and
+// metrics route configured
 func NewHandler(logger *logrus.Logger, targetAddr string) http.Handler {
 	r := mux.NewRouter()
 	h := handler{

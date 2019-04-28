@@ -13,8 +13,8 @@ import (
 )
 
 func main() {
-	port := flag.String("port", "8080", "port number to use with the proxy")
-	target := flag.String("target", "http://localhost:80", "")
+	port := flag.String("port", "8081", "port number to use with the proxy")
+	target := flag.String("target", "http://localhost:8080", "")
 	flag.Parse()
 
 	logger := logrus.New()
