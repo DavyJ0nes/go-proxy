@@ -1,6 +1,7 @@
 # Proxy
 [![][languagego img]][languagego]
 [![][reportcard img]][reportcard]
+[![][buildstatus img]][buildstatus]
 
 <!-- vim-markdown-toc Redcarpet -->
 
@@ -23,3 +24,5 @@ Simple reverse proxy written in Golang.
 [languagego img]:https://img.shields.io/badge/language-golang-77CDDD.svg?style=flat
 [reportcard]:https://goreportcard.com/report/github.com/DavyJ0nes/go-proxy
 [reportcard img]:https://goreportcard.com/badge/github.com/DavyJ0nes/go-proxy
+[buildstatus]:https://travis-ci.com/DavyJ0nes/go-proxy
+[buildstatus img]:https://travis-ci.com/DavyJ0nes/go-proxy.svg?branch=master
