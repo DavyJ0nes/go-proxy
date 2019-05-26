@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gophercon
+  labels:
+    app: legacy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: legacy
+  template:
+    metadata:
+      labels:
+        app: legacy
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8080'
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.7.9
+          ports:
+            - containerPort: 80
+        - name: proxy
+          image: davyj0nes/proxy:0.1.0
+          args: ["-target", "http://127.0.0.1", "-port", "8080"]
+          ports:
+            - containerPort: 8080
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: gophercon
+  labels:
+    app: legacy
+spec:
+  selector:
+    app: legacy
+  ports:
+    - name: web
+      port: 8080
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-app
+  labels:
+    team: frontend
+spec:
+  selector:
+    matchLabels:
+      app: legacy
+  endpoints:
+    - port: web

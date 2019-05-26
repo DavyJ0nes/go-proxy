@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/felixge/httpsnoop"
 	"github.com/gorilla/mux"
@@ -20,7 +22,7 @@ var (
 	requestCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "http_requests_total",
 		Help: "Total number of HTTP requests",
-	}, []string{"method", "route", "status_code"})
+	}, []string{"method", "route", "code"})
 
 	// duration is a histogram that is used to measure the response time (in seconds)
 	// of http requests. The durations are bucketed into sane defaults
@@ -29,7 +31,7 @@ var (
 		Name:    "http_request_duration_seconds",
 		Help:    "Time (in seconds) spent serving HTTP requests",
 		Buckets: prometheus.DefBuckets,
-	}, []string{"method", "route", "status_code"})
+	}, []string{"method", "route", "code"})
 )
 
 // NewHandler instantiates an http.Handler that has the relevant proxy and
@@ -42,7 +44,7 @@ func NewHandler(logger *logrus.Logger, targetAddr string) http.Handler {
 	}
 
 	r.Handle("/metrics", promhttp.Handler())
-	r.PathPrefix("/").Handler(measure(h))
+	r.PathPrefix("/").Handler(measure(h, r))
 
 	return r
 }
@@ -73,15 +75,50 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	proxy.ServeHTTP(w, req)
 }
 
-func measure(next http.Handler) http.Handler {
+func measure(next http.Handler, router *mux.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		m := httpsnoop.CaptureMetrics(next, w, r)
 
-		route := r.RequestURI
+		route := getRouteName(router, r)
 
 		lvs := []string{r.Method, route, strconv.Itoa(m.Code)}
 
 		requestCount.WithLabelValues(lvs...).Add(1)
 		duration.WithLabelValues(lvs...).Observe(m.Duration.Seconds())
 	})
+}
+
+func getRouteName(router *mux.Router, r *http.Request) string {
+	var routeMatch mux.RouteMatch
+	if router.Match(r, &routeMatch) {
+		if name := routeMatch.Route.GetName(); name != "" {
+			return name
+		}
+		if tmpl, err := routeMatch.Route.GetPathTemplate(); err == nil {
+			return makeLabelValue(tmpl)
+		}
+	}
+
+	return "other"
+}
+
+var invalidChars = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+// makeLabelValue converts a Gorilla mux path to a string suitable for use in
+// a Prometheus label value.
+func makeLabelValue(path string) string {
+	// Convert non-alnums to underscores.
+	result := invalidChars.ReplaceAllString(path, "_")
+
+	// Trim leading and trailing underscores.
+	result = strings.Trim(result, "_")
+
+	// Make it all lowercase
+	result = strings.ToLower(result)
+
+	// Special case.
+	if result == "" {
+		result = "root"
+	}
+	return result
 }
